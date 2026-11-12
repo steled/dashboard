@@ -21,6 +21,7 @@ import {
   ViewChild,
   ChangeDetectionStrategy,
 } from '@angular/core';
+import {ThemePalette} from '@angular/material/core';
 import {MatDialog, MatDialogConfig} from '@angular/material/dialog';
 import {ActivatedRoute, Router} from '@angular/router';
 import {EditProviderSettingsComponent} from '@app/cluster/details/cluster/edit-provider-settings/component';
@@ -37,6 +38,7 @@ import {MLAService} from '@core/services/mla';
 import {NotificationService} from '@core/services/notification';
 import {OPAService} from '@core/services/opa';
 import {PathParam} from '@core/services/params';
+import {VSphereService} from '@core/services/provider/vsphere';
 import {SettingsService} from '@core/services/settings';
 import {UserService} from '@core/services/user';
 import {QuotaWidgetComponent} from '@dynamic/enterprise/quotas/quota-widget/component';
@@ -61,7 +63,6 @@ import {MachineDeployment} from '@shared/entity/machine-deployment';
 import {Member} from '@shared/entity/member';
 import {ClusterMetrics} from '@shared/entity/metrics';
 import {VSphereDatastoreUsage} from '@shared/entity/provider/vsphere';
-import {VSphereService} from '@core/services/provider/vsphere';
 import {AlertmanagerConfig, RuleGroup} from '@shared/entity/mla';
 import {Node} from '@shared/entity/node';
 import {Constraint, GatekeeperConfig} from '@shared/entity/opa';
@@ -81,7 +82,6 @@ import {
 } from '@shared/utils/health-status';
 import {MemberUtils, Permission} from '@shared/utils/member';
 import _ from 'lodash';
-import {ThemePalette} from '@angular/material/core';
 import {Observable, Subject, combineLatest, of, timer} from 'rxjs';
 import {catchError, filter, switchMap, take, takeUntil, tap} from 'rxjs/operators';
 import {coerce, compare} from 'semver';
