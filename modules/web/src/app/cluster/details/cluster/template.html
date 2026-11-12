@@ -267,6 +267,13 @@ limitations under the License.
                            [used]="metrics?.nodes?.memoryTotalBytes"
                            [total]="metrics?.nodes?.memoryAvailableBytes" />
         }
+        @if (datastoreUsage?.capacityBytes) {
+        <km-property-usage name="Datastore Usage"
+                           [unit]="datastoreUnit"
+                           [color]="datastoreColor"
+                           [used]="datastoreUsed"
+                           [total]="datastoreTotal" />
+        }
         @if (metrics?.controlPlane?.cpuTotalMillicores) {
         <km-property-usage name="Control Plane CPU Usage"
                            unit="millicores"

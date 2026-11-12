@@ -16,7 +16,7 @@ import {HttpClient} from '@angular/common/http';
 import {Injectable} from '@angular/core';
 import {environment} from '@environments/environment';
 import {VSphereTag} from '@shared/entity/node';
-import {VSphereTagCategory, VSphereVMGroup} from '@shared/entity/provider/vsphere';
+import {VSphereDatastoreUsage, VSphereTagCategory, VSphereVMGroup} from '@shared/entity/provider/vsphere';
 import {Observable} from 'rxjs';
 
 @Injectable()
@@ -33,6 +33,11 @@ export class VSphereService {
   getTags(projectID: string, clusterID: string, tagCategory: string): Observable<VSphereTag[]> {
     const url = `${this._newRestRoot}/projects/${projectID}/clusters/${clusterID}/providers/vsphere/tagcategories/${tagCategory}/tags`;
     return this._httpClient.get<VSphereTag[]>(url);
+  }
+
+  getDatastoreUsage(projectID: string, clusterID: string): Observable<VSphereDatastoreUsage> {
+    const url = `${this._newRestRoot}/projects/${projectID}/clusters/${clusterID}/providers/vsphere/datastoreusage`;
+    return this._httpClient.get<VSphereDatastoreUsage>(url);
   }
 
   getVMGroups(projectID: string, clusterID: string): Observable<VSphereVMGroup[]> {

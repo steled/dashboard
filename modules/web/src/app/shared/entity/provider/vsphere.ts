@@ -27,6 +27,13 @@ export class VSphereDatastores {
   datastores: string[];
 }
 
+export class VSphereDatastoreUsage {
+  name: string;
+  capacityBytes: number;
+  freeBytes: number;
+  uncommittedBytes: number;
+}
+
 export class VSphereTagCategory {
   name: string;
   id: string;

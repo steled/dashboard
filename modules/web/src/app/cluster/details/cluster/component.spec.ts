@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import {HttpClientModule} from '@angular/common/http';
-import {ComponentFixture, fakeAsync, TestBed, tick, waitForAsync} from '@angular/core/testing';
+import {ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick, waitForAsync} from '@angular/core/testing';
 import {MatDialog, MatDialogRef} from '@angular/material/dialog';
 import {BrowserModule, By} from '@angular/platform-browser';
 import {NoopAnimationsModule} from '@angular/platform-browser/animations';
@@ -52,7 +52,6 @@ import {ProjectMockService} from '@test/services/project-mock';
 import {ActivatedRouteStub, RouterStub} from '@test/services/router-stubs';
 import {SettingsMockService} from '@test/services/settings-mock';
 import {UserMockService} from '@test/services/user-mock';
-import {of} from 'rxjs';
 import {VersionPickerComponent} from '../shared/version-picker/component';
 import {CNIVersionComponent} from './cni-version/component';
 import {ClusterDetailsComponent} from './component';
@@ -63,8 +62,14 @@ import {NodeListComponent} from './node-list/component';
 import {RBACComponent} from './rbac/component';
 import {FeatureGateService} from '@app/core/services/feature-gate';
 import {FeatureGatesMockService} from '@test/services/feature-gate-mock';
+import {fakeVSphereCluster} from '@test/data/cluster';
+import {VSphereService} from '@core/services/provider/vsphere';
+import {VSphereDatastoreUsage} from '@shared/entity/provider/vsphere';
+import {NEVER, of, throwError} from 'rxjs';
 
 describe('ClusterDetailsComponent', () => {
+  let vsphereMock: {getDatastoreUsage: jest.Mock};
+
   let fixture: ComponentFixture<ClusterDetailsComponent>;
   let component: ClusterDetailsComponent;
   let activatedRoute: ActivatedRouteStub;
@@ -78,6 +83,8 @@ describe('ClusterDetailsComponent', () => {
     };
     rbacMock.deleteClusterBinding.mockReturnValue(of(null));
     rbacMock.deleteBinding.mockReturnValue(of(null));
+
+    vsphereMock = {getDatastoreUsage: jest.fn()};
 
     const opaMock = {constraints: jest.fn(), gatekeeperConfig: jest.fn()};
     opaMock.constraints.mockReturnValue(of([]));
@@ -119,6 +126,7 @@ describe('ClusterDetailsComponent', () => {
         {provide: ApplicationService, useClass: ApplicationServiceMock},
         {provide: PresetsService, useClass: PresetServiceMock},
         {provide: FeatureGateService, useClass: FeatureGatesMockService},
+        {provide: VSphereService, useValue: vsphereMock},
         EndOfLifeService,
         GoogleAnalyticsService,
         NotificationService,
@@ -162,4 +170,101 @@ describe('ClusterDetailsComponent', () => {
     tick();
     expect(component.nodes).toMatchObject(expectedNodes.map(node => ({...node, creationTimestamp: expect.any(Date)})));
   }));
+  /* eslint-disable @typescript-eslint/no-magic-numbers */
+  describe('datastore usage', () => {
+    const TIB = 1024 ** 4;
+    const usage = (usedPercentage: number, capacityBytes = 15 * TIB): VSphereDatastoreUsage => ({
+      name: 'datastore-1',
+      capacityBytes,
+      freeBytes: capacityBytes * (1 - usedPercentage / 100),
+      uncommittedBytes: 0,
+    });
+
+    function useVSphereCluster(): void {
+      (TestBed.inject(ClusterService) as unknown as {_cluster: unknown})._cluster = fakeVSphereCluster();
+    }
+
+    it('should not request the datastore usage for clusters of other providers', fakeAsync(() => {
+      fixture.detectChanges();
+      tick();
+
+      expect(vsphereMock.getDatastoreUsage).not.toHaveBeenCalled();
+      expect(component.datastoreUsage).toBeFalsy();
+    }));
+
+    it('should show the datastore usage of vSphere clusters', fakeAsync(() => {
+      useVSphereCluster();
+      vsphereMock.getDatastoreUsage.mockReturnValue(of(usage(80)));
+
+      fixture.detectChanges();
+      tick();
+
+      expect(vsphereMock.getDatastoreUsage).toHaveBeenCalledTimes(1);
+      expect(component.datastoreUsage.name).toBe('datastore-1');
+      expect(component.datastoreUnit).toBe('TiB');
+      expect(component.datastoreUsed).toBe(12);
+      expect(component.datastoreTotal).toBe(15);
+      discardPeriodicTasks();
+    }));
+
+    it('should refresh the datastore usage periodically', fakeAsync(() => {
+      useVSphereCluster();
+      vsphereMock.getDatastoreUsage.mockReturnValue(of(usage(50)));
+
+      fixture.detectChanges();
+      tick();
+      expect(vsphereMock.getDatastoreUsage).toHaveBeenCalledTimes(1);
+
+      tick(60 * 1000);
+      expect(vsphereMock.getDatastoreUsage).toHaveBeenCalledTimes(2);
+      discardPeriodicTasks();
+    }));
+
+    it('should not show the datastore usage if it cannot be loaded', fakeAsync(() => {
+      useVSphereCluster();
+      vsphereMock.getDatastoreUsage.mockReturnValue(throwError(() => new Error('vCenter not reachable')));
+
+      fixture.detectChanges();
+      tick();
+
+      expect(component.datastoreUsage).toBeNull();
+      // the rest of the page is still loaded
+      expect(component.sshKeys.length).toBeGreaterThan(0);
+      discardPeriodicTasks();
+    }));
+
+    it('should not wait for the datastore usage to show the rest of the cluster details', fakeAsync(() => {
+      useVSphereCluster();
+      vsphereMock.getDatastoreUsage.mockReturnValue(NEVER);
+
+      fixture.detectChanges();
+      tick();
+
+      expect(component.sshKeys.length).toBeGreaterThan(0);
+      expect(component.datastoreUsage).toBeUndefined();
+      discardPeriodicTasks();
+    }));
+
+    it.each([
+      [0, 'primary'],
+      [74.9, 'primary'],
+      [75, 'accent'],
+      [84.9, 'accent'],
+      [85, 'warn'],
+      [100, 'warn'],
+    ])('should use the color for %s %% used datastore capacity: %s', (usedPercentage, expectedColor) => {
+      component.datastoreUsage = usage(usedPercentage);
+
+      expect(component.datastoreColor).toBe(expectedColor);
+    });
+
+    it('should show small datastores in GiB', () => {
+      component.datastoreUsage = usage(50, 500 * 1024 ** 3);
+
+      expect(component.datastoreUnit).toBe('GiB');
+      expect(component.datastoreUsed).toBe(250);
+      expect(component.datastoreTotal).toBe(500);
+    });
+  });
+  /* eslint-enable @typescript-eslint/no-magic-numbers */
 });

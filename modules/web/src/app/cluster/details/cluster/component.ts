@@ -60,6 +60,8 @@ import {Health, HealthState, HealthType} from '@shared/entity/health';
 import {MachineDeployment} from '@shared/entity/machine-deployment';
 import {Member} from '@shared/entity/member';
 import {ClusterMetrics} from '@shared/entity/metrics';
+import {VSphereDatastoreUsage} from '@shared/entity/provider/vsphere';
+import {VSphereService} from '@core/services/provider/vsphere';
 import {AlertmanagerConfig, RuleGroup} from '@shared/entity/mla';
 import {Node} from '@shared/entity/node';
 import {Constraint, GatekeeperConfig} from '@shared/entity/opa';
@@ -79,8 +81,9 @@ import {
 } from '@shared/utils/health-status';
 import {MemberUtils, Permission} from '@shared/utils/member';
 import _ from 'lodash';
-import {Observable, Subject, combineLatest, of} from 'rxjs';
-import {filter, switchMap, take, takeUntil, tap} from 'rxjs/operators';
+import {ThemePalette} from '@angular/material/core';
+import {Observable, Subject, combineLatest, of, timer} from 'rxjs';
+import {catchError, filter, switchMap, take, takeUntil, tap} from 'rxjs/operators';
 import {coerce, compare} from 'semver';
 import {ClusterDeleteConfirmationComponent} from './cluster-delete-confirmation/component';
 import {EditClusterComponent} from './edit-cluster/component';
@@ -97,6 +100,16 @@ import {
   KUBERNETES_DASHBOARD_DEPRECATED_MESSAGE,
   OPA_DEPRECATED_MESSAGE,
 } from '@app/shared/constants/common';
+
+enum DatastoreUsageConfig {
+  BytesPerGiB = 1073741824, // 1024^3
+  BytesPerTiB = 1099511627776, // 1024^4
+  WarningPercentage = 75,
+  CriticalPercentage = 85,
+  RefreshIntervalMs = 60000,
+  Percent = 100,
+  DecimalFactor = 10,
+}
 
 @Component({
   selector: 'km-cluster-details',
@@ -140,6 +153,7 @@ export class ClusterDetailsComponent implements OnInit, OnDestroy {
   health: Health;
   projectID: string;
   metrics: ClusterMetrics;
+  datastoreUsage: VSphereDatastoreUsage;
   events: Event[] = [];
   addons: Addon[] = [];
   applications: Application[] = [];
@@ -198,8 +212,35 @@ export class ClusterDetailsComponent implements OnInit, OnDestroy {
     private readonly _dialogModeService: DialogModeService,
     readonly settingsService: SettingsService,
     private readonly _presetService: PresetsService,
-    private readonly _featureGatesService: FeatureGateService
+    private readonly _featureGatesService: FeatureGateService,
+    private readonly _vsphereService: VSphereService
   ) {}
+
+  get datastoreUnit(): string {
+    return this.datastoreUsage?.capacityBytes >= DatastoreUsageConfig.BytesPerTiB ? 'TiB' : 'GiB';
+  }
+
+  get datastoreUsed(): number {
+    return this._datastoreBytesToUnit(this.datastoreUsage.capacityBytes - this.datastoreUsage.freeBytes);
+  }
+
+  get datastoreTotal(): number {
+    return this._datastoreBytesToUnit(this.datastoreUsage.capacityBytes);
+  }
+
+  get datastoreColor(): ThemePalette {
+    const usedPercentage =
+      (1 - this.datastoreUsage.freeBytes / this.datastoreUsage.capacityBytes) * DatastoreUsageConfig.Percent;
+    if (usedPercentage >= DatastoreUsageConfig.CriticalPercentage) {
+      return 'warn';
+    }
+    return usedPercentage >= DatastoreUsageConfig.WarningPercentage ? 'accent' : 'primary';
+  }
+
+  private _datastoreBytesToUnit(bytes: number): number {
+    const divisor = this.datastoreUnit === 'TiB' ? DatastoreUsageConfig.BytesPerTiB : DatastoreUsageConfig.BytesPerGiB;
+    return Math.round((bytes / divisor) * DatastoreUsageConfig.DecimalFactor) / DatastoreUsageConfig.DecimalFactor;
+  }
 
   ngOnInit(): void {
     this.projectID = this._route.snapshot.paramMap.get(PathParam.ProjectID);
@@ -218,6 +259,27 @@ export class ClusterDetailsComponent implements OnInit, OnDestroy {
     this.settingsService.adminSettings
       .pipe(takeUntil(this._unsubscribe))
       .subscribe(settings => (this.adminSettings = settings));
+
+    // The datastore usage is only available for vSphere clusters. It is loaded independently of the rest of the
+    // page, so that a slow or unreachable vCenter neither delays the cluster details nor breaks them. Errors result
+    // in no usage being shown.
+    this._clusterService
+      .cluster(this.projectID, clusterID)
+      .pipe(
+        take(1),
+        filter(cluster => !!cluster?.spec?.cloud?.vsphere),
+        switchMap(() =>
+          timer(0, DatastoreUsageConfig.RefreshIntervalMs).pipe(
+            switchMap(() =>
+              this._vsphereService
+                .getDatastoreUsage(this.projectID, clusterID)
+                .pipe(catchError(() => of(null as VSphereDatastoreUsage)))
+            )
+          )
+        ),
+        takeUntil(this._unsubscribe)
+      )
+      .subscribe(datastoreUsage => (this.datastoreUsage = datastoreUsage));
 
     this._clusterService
       .cluster(this.projectID, clusterID)
