@@ -4702,7 +4702,7 @@ func (r Routing) listVSphereFoldersNoCredentials() http.Handler {
 	)
 }
 
-// swagger:route GET /api/v2/projects/{project_id}/clusters/{cluster_id}/providers/vsphere/datastoreusage vsphere listVSphereDatastoreUsageNoCredentials
+// swagger:route GET /api/v2/projects/{project_id}/clusters/{cluster_id}/providers/vsphere/datastoreusage vsphere getVSphereDatastoreUsageNoCredentials
 //
 // Gets capacity and free space of the vsphere datastore used by the cluster
 //

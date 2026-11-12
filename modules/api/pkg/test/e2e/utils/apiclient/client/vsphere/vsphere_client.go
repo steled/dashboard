@@ -28,6 +28,8 @@ type ClientOption func(*runtime.ClientOperation)
 
 // ClientService is the interface for Client methods
 type ClientService interface {
+	GetVSphereDatastoreUsageNoCredentials(params *GetVSphereDatastoreUsageNoCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetVSphereDatastoreUsageNoCredentialsOK, error)
+
 	ListProjectVSphereDatastores(params *ListProjectVSphereDatastoresParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListProjectVSphereDatastoresOK, error)
 
 	ListProjectVSphereFolders(params *ListProjectVSphereFoldersParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListProjectVSphereFoldersOK, error)
@@ -39,8 +41,6 @@ type ClientService interface {
 	ListProjectVSphereTagsForTagCategories(params *ListProjectVSphereTagsForTagCategoriesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListProjectVSphereTagsForTagCategoriesOK, error)
 
 	ListProjectVSphereVMGroups(params *ListProjectVSphereVMGroupsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListProjectVSphereVMGroupsOK, error)
-
-	ListVSphereDatastoreUsageNoCredentials(params *ListVSphereDatastoreUsageNoCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListVSphereDatastoreUsageNoCredentialsOK, error)
 
 	ListVSphereDatastores(params *ListVSphereDatastoresParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListVSphereDatastoresOK, error)
 
@@ -57,6 +57,44 @@ type ClientService interface {
 	ListVSphereVMGroupsNoCredentials(params *ListVSphereVMGroupsNoCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListVSphereVMGroupsNoCredentialsOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
+}
+
+/*
+GetVSphereDatastoreUsageNoCredentials Gets capacity and free space of the vsphere datastore used by the cluster
+*/
+func (a *Client) GetVSphereDatastoreUsageNoCredentials(params *GetVSphereDatastoreUsageNoCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetVSphereDatastoreUsageNoCredentialsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetVSphereDatastoreUsageNoCredentialsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "getVSphereDatastoreUsageNoCredentials",
+		Method:             "GET",
+		PathPattern:        "/api/v2/projects/{project_id}/clusters/{cluster_id}/providers/vsphere/datastoreusage",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &GetVSphereDatastoreUsageNoCredentialsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetVSphereDatastoreUsageNoCredentialsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*GetVSphereDatastoreUsageNoCredentialsDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
 /*
@@ -284,44 +322,6 @@ func (a *Client) ListProjectVSphereVMGroups(params *ListProjectVSphereVMGroupsPa
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*ListProjectVSphereVMGroupsDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-ListVSphereDatastoreUsageNoCredentials Gets capacity and free space of the vsphere datastore used by the cluster
-*/
-func (a *Client) ListVSphereDatastoreUsageNoCredentials(params *ListVSphereDatastoreUsageNoCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListVSphereDatastoreUsageNoCredentialsOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewListVSphereDatastoreUsageNoCredentialsParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "listVSphereDatastoreUsageNoCredentials",
-		Method:             "GET",
-		PathPattern:        "/api/v2/projects/{project_id}/clusters/{cluster_id}/providers/vsphere/datastoreusage",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &ListVSphereDatastoreUsageNoCredentialsReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*ListVSphereDatastoreUsageNoCredentialsOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*ListVSphereDatastoreUsageNoCredentialsDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

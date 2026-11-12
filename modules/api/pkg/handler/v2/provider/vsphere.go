@@ -409,7 +409,7 @@ func DecodeVSphereTagsReq(c context.Context, r *http.Request) (interface{}, erro
 }
 
 // vSphereNoCredentialsReq represent a request for vsphere networks
-// swagger:parameters listVSphereNetworksNoCredentialsV2 listVSphereFoldersNoCredentialsV2 listVSphereTagCategoriesNoCredentials listVSphereVMGroupsNoCredentials listVSphereDatastoreUsageNoCredentials
+// swagger:parameters listVSphereNetworksNoCredentialsV2 listVSphereFoldersNoCredentialsV2 listVSphereTagCategoriesNoCredentials listVSphereVMGroupsNoCredentials getVSphereDatastoreUsageNoCredentials
 type vSphereNoCredentialsReq struct {
 	cluster.GetClusterReq
 }

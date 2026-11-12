@@ -14183,7 +14183,7 @@
         "tags": [
           "vsphere"
         ],
-        "operationId": "listVSphereDatastoreUsageNoCredentials",
+        "operationId": "getVSphereDatastoreUsageNoCredentials",
         "parameters": [
           {
             "type": "string",
