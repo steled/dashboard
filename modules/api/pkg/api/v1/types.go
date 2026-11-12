@@ -860,6 +860,20 @@ type VSphereDatastoreList struct {
 	Datastores []string `json:"datastores"`
 }
 
+// VSphereDatastoreUsage is the object representing the usage of a vsphere datastore or datastore cluster.
+// swagger:model VSphereDatastoreUsage
+type VSphereDatastoreUsage struct {
+	// Name is the name of the datastore or datastore cluster
+	Name string `json:"name"`
+	// CapacityBytes is the total capacity of the datastore or datastore cluster in bytes
+	CapacityBytes int64 `json:"capacityBytes"`
+	// FreeBytes is the free space of the datastore or datastore cluster in bytes
+	FreeBytes int64 `json:"freeBytes"`
+	// UncommittedBytes is the space promised to thin provisioned disks but not yet used, in bytes.
+	// It is not available for datastore clusters and 0 then.
+	UncommittedBytes int64 `json:"uncommittedBytes"`
+}
+
 // VSphereVMGroup is the object representing a vsphere VM Group.
 // swagger:model VSphereVMGroup
 type VSphereVMGroup struct {

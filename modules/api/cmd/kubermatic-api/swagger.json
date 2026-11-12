@@ -14174,6 +14174,48 @@
         }
       }
     },
+    "/api/v2/projects/{project_id}/clusters/{cluster_id}/providers/vsphere/datastoreusage": {
+      "get": {
+        "description": "Gets capacity and free space of the vsphere datastore used by the cluster",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "vsphere"
+        ],
+        "operationId": "listVSphereDatastoreUsageNoCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "ProjectID",
+            "name": "project_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ClusterID",
+            "name": "cluster_id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "VSphereDatastoreUsage",
+            "schema": {
+              "$ref": "#/definitions/VSphereDatastoreUsage"
+            }
+          },
+          "default": {
+            "description": "errorResponse",
+            "schema": {
+              "$ref": "#/definitions/errorResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v2/projects/{project_id}/clusters/{cluster_id}/providers/vsphere/folders": {
       "get": {
         "description": "Lists folders from vsphere datacenter",
@@ -42771,6 +42813,36 @@
             "type": "string"
           },
           "x-go-name": "Datastores"
+        }
+      },
+      "x-go-package": "k8c.io/dashboard/v2/pkg/api/v1"
+    },
+    "VSphereDatastoreUsage": {
+      "type": "object",
+      "title": "VSphereDatastoreUsage is the object representing the usage of a vsphere datastore or datastore cluster.",
+      "properties": {
+        "capacityBytes": {
+          "description": "CapacityBytes is the total capacity of the datastore or datastore cluster in bytes",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "CapacityBytes"
+        },
+        "freeBytes": {
+          "description": "FreeBytes is the free space of the datastore or datastore cluster in bytes",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "FreeBytes"
+        },
+        "name": {
+          "description": "Name is the name of the datastore or datastore cluster",
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "uncommittedBytes": {
+          "description": "UncommittedBytes is the space promised to thin provisioned disks but not yet used, in bytes.\nIt is not available for datastore clusters and 0 then.",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "UncommittedBytes"
         }
       },
       "x-go-package": "k8c.io/dashboard/v2/pkg/api/v1"

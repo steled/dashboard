@@ -57,6 +57,64 @@ func VsphereFoldersWithClusterCredentialsEndpoint(ctx context.Context, userInfoG
 	return GetVsphereFolders(ctx, userInfo, seedsGetter, username, password, datacenterName, caBundle)
 }
 
+// VsphereDatastoreUsageWithClusterCredentialsEndpoint returns capacity and free space of the datastore
+// the cluster is using, read with the credentials of the cluster.
+func VsphereDatastoreUsageWithClusterCredentialsEndpoint(ctx context.Context, userInfoGetter provider.UserInfoGetter,
+	projectProvider provider.ProjectProvider, privilegedProjectProvider provider.PrivilegedProjectProvider,
+	seedsGetter provider.SeedsGetter, projectID, clusterID string, caBundle *x509.CertPool,
+) (interface{}, error) {
+	username, password, datacenterName, userInfo, err := getVsphereCredentialsAndDatacenterInfoFromCluster(ctx, userInfoGetter, projectProvider, privilegedProjectProvider, seedsGetter, projectID, clusterID)
+	if err != nil {
+		return nil, err
+	}
+
+	cluster, err := handlercommon.GetCluster(ctx, projectProvider, privilegedProjectProvider, userInfoGetter, projectID, clusterID, &provider.ClusterGetOptions{CheckInitStatus: true})
+	if err != nil {
+		return nil, err
+	}
+
+	_, datacenter, err := provider.DatacenterFromSeedMap(userInfo, seedsGetter, datacenterName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find Datacenter %q: %w", datacenterName, err)
+	}
+
+	// A cluster uses either a single datastore or a datastore cluster. Without both, the virtual machines are
+	// stored in the default datastore of the datacenter.
+	vsphereSpec := cluster.Spec.Cloud.VSphere
+	if vsphereSpec.DatastoreCluster != "" {
+		summary, err := vsphere.GetDatastoreClusterSummary(ctx, datacenter.Spec.VSphere, username, password, caBundle, vsphereSpec.DatastoreCluster)
+		if err != nil {
+			return nil, err
+		}
+
+		return &apiv1.VSphereDatastoreUsage{
+			Name:          summary.Name,
+			CapacityBytes: summary.Capacity,
+			FreeBytes:     summary.FreeSpace,
+		}, nil
+	}
+
+	datastoreName := vsphereSpec.Datastore
+	if datastoreName == "" {
+		datastoreName = datacenter.Spec.VSphere.DefaultDatastore
+	}
+	if datastoreName == "" {
+		return nil, utilerrors.NewNotFound("datastore for ", clusterID)
+	}
+
+	summary, err := vsphere.GetDatastoreSummary(ctx, datacenter.Spec.VSphere, username, password, caBundle, datastoreName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &apiv1.VSphereDatastoreUsage{
+		Name:             summary.Name,
+		CapacityBytes:    summary.Capacity,
+		FreeBytes:        summary.FreeSpace,
+		UncommittedBytes: summary.Uncommitted,
+	}, nil
+}
+
 func VsphereVMGroupsWithClusterCredentialsEndpoint(ctx context.Context, userInfoGetter provider.UserInfoGetter,
 	projectProvider provider.ProjectProvider, privilegedProjectProvider provider.PrivilegedProjectProvider,
 	seedsGetter provider.SeedsGetter, projectID, clusterID string, caBundle *x509.CertPool,

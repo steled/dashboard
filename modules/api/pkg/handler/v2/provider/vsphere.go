@@ -55,6 +55,16 @@ func VsphereFoldersWithClusterCredentialsEndpoint(projectProvider provider.Proje
 	}
 }
 
+func VsphereDatastoreUsageWithClusterCredentialsEndpoint(projectProvider provider.ProjectProvider,
+	privilegedProjectProvider provider.PrivilegedProjectProvider, seedsGetter provider.SeedsGetter,
+	userInfoGetter provider.UserInfoGetter, caBundle *x509.CertPool) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(vSphereNoCredentialsReq)
+		return providercommon.VsphereDatastoreUsageWithClusterCredentialsEndpoint(ctx, userInfoGetter, projectProvider,
+			privilegedProjectProvider, seedsGetter, req.ProjectID, req.ClusterID, caBundle)
+	}
+}
+
 func VsphereVMGroupsWithClusterCredentialsEndpoint(projectProvider provider.ProjectProvider,
 	privilegedProjectProvider provider.PrivilegedProjectProvider, seedsGetter provider.SeedsGetter,
 	userInfoGetter provider.UserInfoGetter, caBundle *x509.CertPool) endpoint.Endpoint {
@@ -399,7 +409,7 @@ func DecodeVSphereTagsReq(c context.Context, r *http.Request) (interface{}, erro
 }
 
 // vSphereNoCredentialsReq represent a request for vsphere networks
-// swagger:parameters listVSphereNetworksNoCredentialsV2 listVSphereFoldersNoCredentialsV2 listVSphereTagCategoriesNoCredentials listVSphereVMGroupsNoCredentials
+// swagger:parameters listVSphereNetworksNoCredentialsV2 listVSphereFoldersNoCredentialsV2 listVSphereTagCategoriesNoCredentials listVSphereVMGroupsNoCredentials listVSphereDatastoreUsageNoCredentials
 type vSphereNoCredentialsReq struct {
 	cluster.GetClusterReq
 }

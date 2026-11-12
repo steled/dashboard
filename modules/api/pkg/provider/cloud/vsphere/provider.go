@@ -32,6 +32,7 @@ import (
 	"github.com/vmware/govmomi/vapi/rest"
 	"github.com/vmware/govmomi/vapi/tags"
 	"github.com/vmware/govmomi/vim25"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 
@@ -268,6 +269,55 @@ func GetDatastoreList(ctx context.Context, dc *kubermaticv1.DatacenterSpecVSpher
 	}
 
 	return datastoreList, nil
+}
+
+// GetDatastoreSummary returns the summary (capacity, free space, uncommitted space) of the named datastore.
+func GetDatastoreSummary(ctx context.Context, dc *kubermaticv1.DatacenterSpecVSphere, username, password string, caBundle *x509.CertPool, datastoreName string) (*types.DatastoreSummary, error) {
+	session, err := newSession(ctx, dc, username, password, caBundle)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create vCenter session: %w", err)
+	}
+	defer session.Logout(ctx)
+
+	datastore, err := session.Finder.Datastore(ctx, datastoreName)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find datastore %q: %w", datastoreName, err)
+	}
+
+	var ds mo.Datastore
+	if err := datastore.Properties(ctx, datastore.Reference(), []string{"summary"}, &ds); err != nil {
+		return nil, fmt.Errorf("couldn't retrieve summary of datastore %q: %w", datastoreName, err)
+	}
+
+	return &ds.Summary, nil
+}
+
+// GetDatastoreClusterSummary returns the summary of the datastore cluster (storage pod) with the given name or
+// inventory path. Capacity and free space are the sums over all datastores of the datastore cluster.
+func GetDatastoreClusterSummary(ctx context.Context, dc *kubermaticv1.DatacenterSpecVSphere, username, password string, caBundle *x509.CertPool, datastoreClusterName string) (*types.StoragePodSummary, error) {
+	session, err := newSession(ctx, dc, username, password, caBundle)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create vCenter session: %w", err)
+	}
+	defer session.Logout(ctx)
+
+	datastoreCluster, err := session.Finder.DatastoreCluster(ctx, datastoreClusterName)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find datastore cluster %q: %w", datastoreClusterName, err)
+	}
+
+	var pod mo.StoragePod
+	if err := datastoreCluster.Properties(ctx, datastoreCluster.Reference(), []string{"name", "summary"}, &pod); err != nil {
+		return nil, fmt.Errorf("couldn't retrieve summary of datastore cluster %q: %w", datastoreClusterName, err)
+	}
+	if pod.Summary == nil {
+		return nil, fmt.Errorf("datastore cluster %q has no summary", datastoreClusterName)
+	}
+	if pod.Summary.Name == "" {
+		pod.Summary.Name = pod.Name
+	}
+
+	return pod.Summary, nil
 }
 
 // GetVMGroupsList returns a slice of Datastore of the datacenter from the passed cloudspec.
